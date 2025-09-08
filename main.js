@@ -41,53 +41,59 @@ window.addEventListener('keyup', (e) => {
 });
 
 
+// --- Animation loop ---
 (function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
+
+    // --- Gamepad input ---
     if (gamepad.axes?.[0] !== undefined) {
-        let mapped = mapRange(gamepad.axes?.[0], -1, 1, -0.1, 0.1);
-        vr = mapped;
+        vr = mapRange(gamepad.axes[0], -1, 1, -0.05, 0.05); // roll
     }
 
     if (gamepad.axes?.[3] !== undefined) {
-        let mapped = mapRange(gamepad.axes?.[3], -1, 1, 0, 0.1);
-        thrust = mapped;
+        thrust = mapRange(gamepad.axes[3], -1, 1, 0, 0.15); // throttle
     }
 
+    // --- Update rotation ---
     ship.rotation += vr;
-    const angle = ship.rotation;
-    const ax = Math.cos(angle) * thrust;
-    const ay = Math.sin(angle) * thrust;
+
+    // --- Apply thrust along drone's rotated direction ---
+    const angle = ship.rotation; // rotation in radians
+    const ax = Math.cos(angle) * thrust; // horizontal component
+    const ay = Math.sin(angle) * thrust; // vertical component
 
     vx += ax;
     vy += ay;
 
-    vy -= thrust;
-    
+    // --- Apply gravity ---
     vy += gravity;
 
-    console.log(vy);
+    // --- Clamp vertical velocity ---
+    if (vy > terminalVelocity) vy = terminalVelocity;
+    if (vy < -terminalVelocity) vy = -terminalVelocity;
+    
+    vx *= 0.99;
 
-    if (vy > terminalVelocity) {
-        vy = terminalVelocity;
-    }
+    // --- Update position ---
     ship.x += vx;
     ship.y += vy;
 
-    if ((ship.y) >= ground.groundLevel) {
+    // --- Ground collision ---
+    if (ship.y >= ground.groundLevel) {
         ship.y = ground.groundLevel;
         vy = 0;
+        vx *= 0.8; // optional: damp horizontal velocity on landing
     }
 
-    if (ship.x < 0) {
-        ship.x = canvas.width;
-    } else if (ship.x > canvas.width) {
-        ship.x = 0;
-    }
-    
+    // --- Wrap horizontally ---
+    if (ship.x < 0) ship.x = canvas.width;
+    else if (ship.x > canvas.width) ship.x = 0;
+
+    // --- Draw ---
     ground.draw(ctx);
     ship.draw(ctx);
 
+    // --- Update gamepad visuals ---
     gamepad.update();
     gamepad.draw(ctx);
 
